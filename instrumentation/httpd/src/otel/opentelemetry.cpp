@@ -20,7 +20,7 @@
 #include <memory>
 
 #include "opentelemetry/exporters/ostream/span_exporter.h"
-#include "opentelemetry/exporters/otlp/otlp_exporter.h"
+#include "opentelemetry/exporters/otlp/otlp_grpc_exporter.h"
 #include "opentelemetry/sdk/trace/batch_span_processor.h"
 #include "opentelemetry/sdk/trace/simple_processor.h"
 #include "opentelemetry/sdk/trace/tracer_provider.h"
@@ -66,10 +66,10 @@ void initTracer()
             config.fname.empty() ? std::cerr : config.output_file));
       break;
     case OtelExporterType::OTLP:
-      opentelemetry::exporter::otlp::OtlpExporterOptions opts;
+      opentelemetry::exporter::otlp::OtlpGrpcExporterOptions opts;
       opts.endpoint = config.endpoint;
       exporter      = std::unique_ptr<sdktrace::SpanExporter>(
-        new opentelemetry::exporter::otlp::OtlpExporter(opts));
+        new opentelemetry::exporter::otlp::OtlpGrpcExporter(opts));
       break;
   }
 
