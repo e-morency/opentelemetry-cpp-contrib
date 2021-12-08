@@ -27,6 +27,7 @@
 #include "opentelemetry/trace/provider.h"
 
 namespace nostd = opentelemetry::nostd;
+namespace sdktrace = opentelemetry::sdk::trace;
 
 namespace httpd_otel
 {
