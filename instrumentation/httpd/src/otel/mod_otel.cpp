@@ -19,6 +19,7 @@
 #include "opentelemetry/context/context.h"
 #include "opentelemetry/trace/propagation/b3_propagator.h"
 #include "opentelemetry/trace/propagation/http_trace_context.h"
+#include "opentelemetry/trace/span.h"
 
 #include "ap_config.h"
 #include "httpd.h"
@@ -26,6 +27,9 @@
 #include "http_config.h"
 #include "http_protocol.h"
 #include "mod_proxy.h"
+
+namespace trace = opentelemetry::trace;
+namespace nostd = opentelemetry::nostd;
 
 namespace
 {
@@ -42,12 +46,12 @@ class HttpdCarrier : public opentelemetry::context::propagation::TextMapCarrier
 public:
   apr_table_t& hdrs;
   HttpdCarrier(apr_table_t& headers):hdrs(headers){}
-  virtual opentelemetry::v0::nostd::string_view Get(opentelemetry::v0::nostd::string_view key) const noexcept override
+  virtual nostd::string_view Get(nostd::string_view key) const noexcept override
   {
     auto fnd = apr_table_get(&hdrs, std::string(key).c_str());
     return fnd ? fnd : "";
   }
-  virtual void Set(opentelemetry::v0::nostd::string_view key, opentelemetry::v0::nostd::string_view value) noexcept override
+  virtual void Set(nostd::string_view key, nostd::string_view value) noexcept override
   {
     apr_table_set(&hdrs, std::string(key).c_str(),
               std::string(value).c_str());
@@ -55,9 +59,9 @@ public:
 };
 
 // propagators
-opentelemetry::trace::propagation::HttpTraceContext PropagatorTraceContext;
-opentelemetry::trace::propagation::B3Propagator PropagatorB3SingleHeader;
-opentelemetry::trace::propagation::B3PropagatorMultiHeader PropagatorB3MultiHeader;
+trace::propagation::HttpTraceContext PropagatorTraceContext;
+trace::propagation::B3Propagator PropagatorB3SingleHeader;
+trace::propagation::B3PropagatorMultiHeader PropagatorB3MultiHeader;
 
 // from:
 // https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/trace/semantic_conventions/http.md#http-server-semantic-conventions
@@ -127,7 +131,7 @@ static int opentel_handler(request_rec *r, int /* lookup_uri */ )
   if (!config.ignore_inbound && config.propagation != OtelPropagation::NONE)
   {
     HttpdCarrier car(*req->headers_in);
-    opentelemetry::v0::context::Context ctx_new,
+    opentelemetry::context::Context ctx_new,
         ctx_cur = opentelemetry::context::RuntimeContext::GetCurrent();
     switch (config.propagation)
     {
@@ -141,8 +145,8 @@ static int opentel_handler(request_rec *r, int /* lookup_uri */ )
     req_data->token = opentelemetry::context::RuntimeContext::Attach(ctx_new);
   }
 
-  opentelemetry::trace::StartSpanOptions startOpts;
-  startOpts.kind = opentelemetry::trace::SpanKind::kServer;
+  trace::StartSpanOptions startOpts;
+  startOpts.kind = trace::SpanKind::kServer;
   auto span = get_tracer()->StartSpan(kSpanNamePrefix + req->method, startOpts);
 
   req_data->span  = span;
@@ -204,8 +208,8 @@ static int proxy_fixup_handler(request_rec *r)
   apr_pool_userdata_setn(ExtraRequestDataBuffer, kOpenTelemetryKeyOutboundNote,
                          (apr_status_t(*)(void *))ExtraRequestData::Destruct, req->pool);
 
-  opentelemetry::trace::StartSpanOptions startOpts;
-  startOpts.kind = opentelemetry::trace::SpanKind::kClient;
+  trace::StartSpanOptions startOpts;
+  startOpts.kind = trace::SpanKind::kClient;
   startOpts.parent = req_data->span->GetContext();
   auto span = get_tracer()->StartSpan(kSpanNamePrefix + req->method, startOpts);
 
@@ -260,7 +264,7 @@ static int proxy_end_handler(int *status, request_rec *r)
   const char *proxy_error = apr_table_get(r->notes, "error-notes");
   if (proxy_error)
   {
-    req_data_out->span->SetStatus(opentelemetry::trace::StatusCode::kError, proxy_error);
+    req_data_out->span->SetStatus(trace::StatusCode::kError, proxy_error);
   }
 
   // finish span

@@ -14,17 +14,19 @@
  * limitations under the License.
  */
 
+#include "opentelemetry/exporters/otlp/otlp_grpc_exporter.h"
 #include "opentelemetry.h"
 
 #include <fstream>
 #include <memory>
 
 #include "opentelemetry/exporters/ostream/span_exporter.h"
-#include "opentelemetry/exporters/otlp/otlp_grpc_exporter.h"
 #include "opentelemetry/sdk/trace/batch_span_processor.h"
 #include "opentelemetry/sdk/trace/simple_processor.h"
 #include "opentelemetry/sdk/trace/tracer_provider.h"
 #include "opentelemetry/trace/provider.h"
+
+namespace nostd = opentelemetry::nostd;
 
 namespace httpd_otel
 {
@@ -93,7 +95,7 @@ void initTracer()
     resAttrs[it.first] = it.second;
   }
 
-  auto provider = opentelemetry::v0::nostd::shared_ptr<opentelemetry::trace::TracerProvider>(
+  auto provider = nostd::shared_ptr<opentelemetry::trace::TracerProvider>(
     new sdktrace::TracerProvider(std::move(processor),
     opentelemetry::sdk::resource::Resource::Create(resAttrs))
   );
@@ -102,7 +104,7 @@ void initTracer()
   opentelemetry::trace::Provider::SetTracerProvider(provider);
 }
 
-opentelemetry::v0::nostd::shared_ptr<opentelemetry::trace::Tracer> get_tracer()
+nostd::shared_ptr<opentelemetry::trace::Tracer> get_tracer()
 {
   auto provider = opentelemetry::trace::Provider::GetTracerProvider();
   return provider->GetTracer(KHTTPDOTelTracerName);
